@@ -1,0 +1,11 @@
+[ {
+  "usn" : "1NH23CD049",
+  "name" : "Fredrick",
+  "cgpa" : 3.0,
+  "sem" : 6
+}, {
+  "usn" : "1NH23CD041",
+  "name" : "Dananjay VM",
+  "cgpa" : 9.0,
+  "sem" : 6
+} ]
