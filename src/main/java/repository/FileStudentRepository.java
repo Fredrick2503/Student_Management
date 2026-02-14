@@ -12,7 +12,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FileStudentRepository implements StudentRepository{
+public class FileStudentRepository{
     private static final Logger logger = LoggerFactory.getLogger(FileStudentRepository.class);
 
     private static final String FILE_PATH = "students.json";

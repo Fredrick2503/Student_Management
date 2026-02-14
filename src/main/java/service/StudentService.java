@@ -1,11 +1,14 @@
 package service;
 
+import config.DatabaseConfig;
+import config.TransactionManager;
 import exception.DuplicateStudentException;
 import exception.StudentNotFoundException;
 import model.Student;
 import repository.StudentRepository;
-import repository.FileStudentRepository;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -15,53 +18,80 @@ import org.slf4j.LoggerFactory;
 
 
 public class StudentService implements StudentServiceInterface {
-    private final Map<String, Student> students;
+//    private final Map<String, Student> students;
     private final StudentRepository repository;
     private static final Logger logger = LoggerFactory.getLogger(StudentService.class);
-
+    private static final TransactionManager transactionManger = new TransactionManager();
 
     public StudentService(StudentRepository repository) {
         this.repository = repository;
-        List<Student> loaded = this.repository.loadStudents();
-        this.students = new ConcurrentHashMap<>(Math.max(16, loaded.size() * 2));
-        logger.info("StudentService initialized. Loaded {} students", loaded.size());
-        for (Student s : loaded) {
-            if (students.containsKey(s.getUSN())) {
-                logger.warn("Duplicate insertion attempted: {}", s.getUSN());
-                throw new DuplicateStudentException(s.getUSN());
-            }
-            students.put(s.getUSN(), s);
-        }
+
+//        List<Student> loaded = this.repository.loadStudents();
+//        this.students = new ConcurrentHashMap<>(Math.max(16, loaded.size() * 2));
+//        logger.info("StudentService initialized. Loaded {} students", loaded.size());
+//        for (Student s : loaded) {
+//            if (students.containsKey(s.getUSN())) {
+//                logger.warn("Duplicate insertion attempted: {}", s.getUSN());
+//                throw new DuplicateStudentException(s.getUSN());
+//            }
+//            students.put(s.getUSN(), s);
+//        }
     }
 
-    private void save() {
-        this.repository.saveStudents(new ArrayList<>(students.values()));
-    }
+//    private void save() {
+//        this.repository.saveStudents(new ArrayList<>(students.values()));
+//    }
 
     private String normalizeUsn(String usn) {
         return usn.trim().toUpperCase();
     }
 
 
-    public Student getStudent(String usn) {
-        Student student = students.get(normalizeUsn(usn));
-        if (student == null) {
-            logger.warn("Student lookup failed: {}", usn);
-            throw new StudentNotFoundException(usn.toUpperCase());
+    //READ
+    @Override
+    public Optional<Student> getStudent(String usn) {
+        try(Connection conn = DatabaseConfig.getConnection()){
+            return  repository.findByUsn(conn,usn);
+        }catch (SQLException e){
+            throw new RuntimeException("Database error: ",e);
         }
-        return student;
     }
 
-    public Student removeStudent(String usn) {
-        Student removed = students.remove(normalizeUsn(usn));
-        if (removed == null) {
-            logger.error("Student lookup failed: {}", usn);
-            throw new StudentNotFoundException(usn.toUpperCase());
+    public List<Student> getAllStudents() {
+        try(Connection conn = DatabaseConfig.getConnection()){
+            return  repository.findAll(conn);
+        }catch (SQLException e){
+            throw new RuntimeException("Database error: ",e);
         }
-        save();
-        logger.info("Student removed: {}", removed.getUSN());
-        return removed;
     }
+
+    public List<Student> findStudentsByName(String name) {
+        try(Connection conn = DatabaseConfig.getConnection()){
+            return  repository.findByName(conn,name);
+        }catch (SQLException e){
+            throw new RuntimeException("Database error: ",e);
+        }
+    }
+
+//    public List<Student> getStudentsSortedByCgpa() {
+//        List<Student> sorted = new ArrayList<>(students.values());
+//        sorted.sort(Comparator.comparingDouble(Student::getCgpa).reversed());
+//        return sorted;
+//    }
+
+    public List<Student> getStudentsBySemester(int sem) {
+        try(Connection conn = DatabaseConfig.getConnection()){
+            return  repository.findBySemester(conn,sem);
+        }catch (SQLException e){
+            throw new RuntimeException("Database error: ",e);
+        }
+    }
+
+//    public List<Student> getStudentsCgpaSortedBySemster(int sem) {
+//        List<Student> result = getStudentBySemester(sem);
+//        result.sort(Comparator.comparingDouble(Student::getCgpa).reversed());
+//        return result;
+//    }
 
     //    public void addStudent(Student student) {
 //        if (students.containsKey(student.getUSN())) {
@@ -73,32 +103,20 @@ public class StudentService implements StudentServiceInterface {
 //        logger.info("Student add: {}", student.getUSN());
 //    }
     public void addStudent(Student student) {
-        String usn = student.getUSN();
-        Student existing = students.putIfAbsent(usn, student);
-
-        if (existing != null) {
-            logger.warn("Duplicate insertion attempted: {}", usn);
-            throw new DuplicateStudentException(usn);
-        }
-
-        try {
-            save();
-            logger.info("Student added: {}", usn);
-        } catch (Exception e) {
-
-            students.remove(usn); // rollback memory
-
-            logger.error("Failed to persist student: {}", usn, e);
-
-            throw e;
-        }
+        transactionManger.execute(conn->{
+            repository.save(conn,student);
+        });
     }
 
     public void updateStudent(String usn, Consumer<Student> updater) {
-        Student student = getStudent(usn);
-        updater.accept(student);
-        save();
-        logger.info("Student updates: {}", student.getUSN());
+        Optional<Student> student = getStudent(usn);
+        if (student.isPresent()) {
+            updater.accept(student.get());
+            transactionManger.execute(conn->{
+                repository.save(conn,student.get());
+            });
+            logger.info("Student updates: {}", student.get().getUSN());
+        }
     }
 
     public void updateCgpa(String usn, double cgpa) {
@@ -113,47 +131,14 @@ public class StudentService implements StudentServiceInterface {
         updateStudent(usn, s -> s.setName(name));
     }
 
-    public List<Student> getAllStudents() {
-        return Collections.unmodifiableList(new ArrayList<>(students.values()));
-    }
 
-    public List<Student> findStudentsByName(String name) {
-        if (name == null || name.isBlank()) {
-            return Collections.emptyList();
-        }
-        String search = name.trim().toLowerCase();
-        List<Student> result = new ArrayList<>();
-        for (Student student : students.values()) {
-            String studentName = student.getName().toLowerCase();
-            if (studentName.contains(search)) {
-                result.add(student);
-            }
-        }
-        return result;
+    public void removeStudent(String usn) {
+        transactionManger.execute(conn->{
+            repository.deleteByUsn(conn,usn);
+        });
+        logger.info("Student removed: {}",usn);
+//        return removed;
     }
-
-    public List<Student> getStudentsSortedByCgpa() {
-        List<Student> sorted = new ArrayList<>(students.values());
-        sorted.sort(Comparator.comparingDouble(Student::getCgpa).reversed());
-        return sorted;
-    }
-
-    public List<Student> getStudentBySemester(int sem) {
-        List<Student> result = new ArrayList<>();
-        for (Student s : students.values()) {
-            if (s.getSem() == sem) {
-                result.add(s);
-            }
-        }
-        return result;
-    }
-
-    public List<Student> getStudentsCgpaSortedBySemster(int sem) {
-        List<Student> result = getStudentBySemester(sem);
-        result.sort(Comparator.comparingDouble(Student::getCgpa).reversed());
-        return result;
-    }
-
 
 }
 
