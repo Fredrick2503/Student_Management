@@ -1,7 +1,7 @@
-package service;
+package com.students.service;
 
-import model.Student;
-import java.util.Collection;
+import com.students.model.Student;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -38,7 +38,7 @@ public interface StudentServiceInterface {
 //    void enrollStudentWithAudit(Student student);
 
     // READ
-    Optional<Student> getStudent(String usn);
+    Student getStudent(String usn);
 
     List<Student> getAllStudents();
 

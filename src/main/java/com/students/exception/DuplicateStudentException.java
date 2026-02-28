@@ -1,4 +1,4 @@
-package exception;
+package com.students.exception;
 
 
 public class DuplicateStudentException extends RuntimeException{

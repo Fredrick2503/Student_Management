@@ -1,8 +1,8 @@
-package repository;
+package com.students.repository;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import model.Student;
+import com.students.model.Student;
 
 import java.io.File;
 import java.io.IOException;

@@ -1,10 +1,13 @@
-package model;
+package com.students.model;
+import java.util.regex.Pattern;
+
 
 public class Student {
     private String usn;
     private String name;
     private double cgpa;
     private int sem;
+    private static final Pattern USN_PATTERN = Pattern.compile("^[0-9]{1}[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{3}$");
     public Student(){}
     public Student(String usn, String name, int sem, double cgpa) {
         this.usn=validateUsn(usn);
@@ -15,11 +18,11 @@ public class Student {
 
     private String validateUsn(String usn){
         if(usn == null) {
-            throw new IllegalArgumentException("Ilegal USN");
+            throw new IllegalArgumentException("Illegal USN");
         }
-        usn = usn.trim();
-        if (usn.isBlank()) {
-            throw new IllegalArgumentException("Ilegal USN");
+        usn = usn.trim().toUpperCase();
+        if (!USN_PATTERN.matcher(usn).matches()) {
+            throw new IllegalArgumentException("Invalid USN Format");
         }
         return usn.toUpperCase();
     }

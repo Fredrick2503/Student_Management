@@ -1,14 +1,3 @@
-import config.DatabaseConfig;
-import model.Student;
-import repository.PostgresStudentRepository;
-import repository.StudentRepository;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Optional;
-
 public class PostgresStudentRepositoryTest {
 
 //    public static void main(String[] args) {

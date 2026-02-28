@@ -1,7 +1,7 @@
 package ui;
 
-import service.StudentServiceInterface;
-import model.Student;
+import com.students.service.StudentServiceInterface;
+import com.students.model.Student;
 
 import java.util.Scanner;
 
